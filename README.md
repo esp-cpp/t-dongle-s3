@@ -1,23 +1,37 @@
-# ESP++ Template
+# T-Dongle S3
 
-Template repository for building an ESP app with ESP++ (espp) components and
-ESP-IDF components.
+This repository provides example support for the [LilyGo T-Dongle
+S3](https://github.com/Xinyuan-LilyGO/T-Dongle-S3) dev board which has:
 
-## Development
+* WiFi / BLE
+* uSD card (hidden in the USB A connector!)
+* RGB LED
+* Color TFT LCD (ST7735, 80x160 0.96" IPS LCD)
 
-This repository is designed to be used as a template repository - so you can
-sepcify this as the template repository type when creating a new repository on
-GitHub.
+## T-Dongle S3 Pin Configuration
 
-After setting this as the template, make sure to update the following:
-- [This README](./README.md) to contain the relevant description and images of your project
-- The [./CMakeLists.txt](./CMakeLists.txt) file to have the components that you
-  want to use (and any you may have added to the [components
-  folder](./components)) as well as to update the project name
-- The [./main/main.cpp](./main/main.cpp) To run the main code for your app. The
-  [main folder](./main) is also where you can put additional header and source
-  files that you don't think belong in their own components but help keep the
-  main code clean.
+| LED Pin | ESP32S3 IO Pin Number |
+|---------|-----------------------|
+| Data    | 40                    |
+| Clock   | 39                    |
+
+| LCD Pin   | ESP32S3 IO Pin Number        |
+|-----------|------------------------------|
+| CS        | 4                            |
+| SDA       | 3                            |
+| SCL       | 5                            |
+| DC        | 2                            |
+| Reset     | 1                            |
+| Backlight | 38                           |
+
+| TF / uSD Card Pin | ESP32S3 IO Pin Number |
+|-------------------|-----------------------|
+| D0                | 14                    |
+| D1                | 17                    |
+| D2                | 21                    |
+| D3                | 18                    |
+| CLK               | 12                    |
+| CMD               | 16                    |
 
 ## Cloning
 
@@ -25,7 +39,7 @@ Since this repo contains a submodule, you need to make sure you clone it
 recursively, e.g. with:
 
 ``` sh
-git clone --recurse-submodules <your repo name>
+git clone --recurse-submodules git@github.com:esp-cpp/t-dongle-s3
 ```
 
 Alternatively, you can always ensure the submodules are up to date after cloning
@@ -51,6 +65,3 @@ See the Getting Started Guide for full steps to configure and use ESP-IDF to bui
 
 ## Output
 
-Example screenshot of the console output from this app:
-
-![CleanShot 2023-07-12 at 14 01 21](https://github.com/esp-cpp/template/assets/213467/7f8abeae-121b-4679-86d8-7214a76f1b75)
