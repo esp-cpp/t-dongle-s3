@@ -9,6 +9,8 @@
 #include "st7789.hpp"
 #include "task.hpp"
 
+#include "gui.hpp"
+
 using namespace std::chrono_literals;
 
 // APA102 LED
@@ -47,7 +49,7 @@ static void IRAM_ATTR lcd_spi_post_transfer_callback(spi_transaction_t *t);
 extern "C" void IRAM_ATTR lcd_write(const uint8_t *data, size_t length, uint32_t user_data);
 static void lcd_wait_lines();
 extern "C" void IRAM_ATTR lcd_send_lines(int xs, int ys, int xe, int ye, const uint8_t *data,
-                                        uint32_t user_data);
+                                         uint32_t user_data);
 static spi_device_handle_t lcd_spi;
 static const int lcd_spi_queue_size = 7;
 static size_t lcd_num_queued_trans = 0;
@@ -108,9 +110,7 @@ extern "C" void app_main(void) {
   espp::Task led_task({
       .name = "Led Task",
         .callback = [&](auto &m, auto &cv) -> bool {
-          static auto start = std::chrono::high_resolution_clock::now();
-          auto now = std::chrono::high_resolution_clock::now();
-          float t = std::chrono::duration<float>(now - start).count();
+          float t = elapsed();
           // rotate through rainbow colors in hsv based on time, hue is 0-360
           float hue = (cos(t) * 0.5f + 0.5f) * 360.0f;
           espp::Hsv hsv(hue, 1.0f, 1.0f);
@@ -127,62 +127,67 @@ extern "C" void app_main(void) {
         });
   led_task.start();
 
-    // create the spi host
-    spi_bus_config_t lcd_buscfg;
-    memset(&lcd_buscfg, 0, sizeof(lcd_buscfg));
-    lcd_buscfg.mosi_io_num = TFT_MOSI_PIN;
-    lcd_buscfg.miso_io_num = -1;
-    lcd_buscfg.sclk_io_num = TFT_SCLK_PIN;
-    lcd_buscfg.quadwp_io_num = -1;
-    lcd_buscfg.quadhd_io_num = -1;
-    lcd_buscfg.max_transfer_sz = (int)(tft_pixel_buffer_size * sizeof(lv_color_t));
-    // create the spi device
-    spi_device_interface_config_t lcd_devcfg;
-    memset(&lcd_devcfg, 0, sizeof(lcd_devcfg));
-    lcd_devcfg.mode = 0;
-    lcd_devcfg.clock_speed_hz = TFT_CLK_SPEED_HZ;
-    lcd_devcfg.input_delay_ns = 0;
-    lcd_devcfg.spics_io_num = TFT_CS_PIN;
-    lcd_devcfg.queue_size = lcd_spi_queue_size;
-    lcd_devcfg.pre_cb = lcd_spi_pre_transfer_callback;
-    lcd_devcfg.post_cb = lcd_spi_post_transfer_callback;
-    esp_err_t ret;
-    // Initialize the SPI bus
-    ret = spi_bus_initialize(TFT_SPI_HOST, &lcd_buscfg, SPI_DMA_CH_AUTO);
-    ESP_ERROR_CHECK(ret);
-    // Attach the LCD to the SPI bus
-    ret = spi_bus_add_device(TFT_SPI_HOST, &lcd_devcfg, &lcd_spi);
-    ESP_ERROR_CHECK(ret);
+  // create the spi host
+  spi_bus_config_t lcd_buscfg;
+  memset(&lcd_buscfg, 0, sizeof(lcd_buscfg));
+  lcd_buscfg.mosi_io_num = TFT_MOSI_PIN;
+  lcd_buscfg.miso_io_num = -1;
+  lcd_buscfg.sclk_io_num = TFT_SCLK_PIN;
+  lcd_buscfg.quadwp_io_num = -1;
+  lcd_buscfg.quadhd_io_num = -1;
+  lcd_buscfg.max_transfer_sz = (int)(tft_pixel_buffer_size * sizeof(lv_color_t));
+  // create the spi device
+  spi_device_interface_config_t lcd_devcfg;
+  memset(&lcd_devcfg, 0, sizeof(lcd_devcfg));
+  lcd_devcfg.mode = 0;
+  lcd_devcfg.clock_speed_hz = TFT_CLK_SPEED_HZ;
+  lcd_devcfg.input_delay_ns = 0;
+  lcd_devcfg.spics_io_num = TFT_CS_PIN;
+  lcd_devcfg.queue_size = lcd_spi_queue_size;
+  lcd_devcfg.pre_cb = lcd_spi_pre_transfer_callback;
+  lcd_devcfg.post_cb = lcd_spi_post_transfer_callback;
+  esp_err_t ret;
+  // Initialize the SPI bus
+  ret = spi_bus_initialize(TFT_SPI_HOST, &lcd_buscfg, SPI_DMA_CH_AUTO);
+  ESP_ERROR_CHECK(ret);
+  // Attach the LCD to the SPI bus
+  ret = spi_bus_add_device(TFT_SPI_HOST, &lcd_devcfg, &lcd_spi);
+  ESP_ERROR_CHECK(ret);
 
-    // initialize the controller
-    DisplayDriver::initialize(espp::display_drivers::Config{
-        .lcd_write = lcd_write,
-        .lcd_send_lines = lcd_send_lines,
-        .reset_pin = TFT_RST_PIN,
-        .data_command_pin = TFT_DC_PIN,
-        .reset_value = tft_reset_value,
-        .invert_colors = tft_invert_colors,
-        .offset_x = tft_offset_x,
-        .offset_y = tft_offset_y,
-        .mirror_x = tft_mirror_x,
-        .mirror_y = tft_mirror_y,
+  // initialize the controller
+  DisplayDriver::initialize(espp::display_drivers::Config{
+      .lcd_write = lcd_write,
+      .lcd_send_lines = lcd_send_lines,
+      .reset_pin = TFT_RST_PIN,
+      .data_command_pin = TFT_DC_PIN,
+      .reset_value = tft_reset_value,
+      .invert_colors = tft_invert_colors,
+      .offset_x = tft_offset_x,
+      .offset_y = tft_offset_y,
+      .mirror_x = tft_mirror_x,
+      .mirror_y = tft_mirror_y,
     });
-    // initialize the display / lvgl
-    auto display = std::make_shared<espp::Display>(
-        espp::Display::AllocatingConfig{.width = TFT_WIDTH,
-                                        .height = TFT_HEIGHT,
-                                        .pixel_buffer_size = tft_pixel_buffer_size,
-                                        .flush_callback = DisplayDriver::flush,
-                                        .backlight_pin = TFT_BACKLIGHT_PIN,
-                                        .backlight_on_value = tft_backlight_on_value,
-                                        .rotation = tft_rotation,
-                                        .software_rotation_enabled = true});
+  // initialize the display / lvgl
+  auto display = std::make_shared<espp::Display>(
+                                                 espp::Display::AllocatingConfig{.width = TFT_WIDTH,
+                                                                                 .height = TFT_HEIGHT,
+                                                                                 .pixel_buffer_size = tft_pixel_buffer_size,
+                                                                                 .flush_callback = DisplayDriver::flush,
+                                                                                 .backlight_pin = TFT_BACKLIGHT_PIN,
+                                                                                 .backlight_on_value = tft_backlight_on_value,
+                                                                                 .rotation = tft_rotation,
+                                                                                 .software_rotation_enabled = true});
 
+  Gui gui({.display = display});
 
-
+  int iterations = 0;
   // also print in the main thread
   while (true) {
-    logger.debug("[{:.3f}] Hello World!", elapsed());
+    auto label = fmt::format("[{:.1f} s]: {}", elapsed(), iterations);
+    logger.debug("{}", label);
+    gui.set_label(label);
+    gui.set_meter(iterations % 100);
+    iterations++;
     std::this_thread::sleep_for(1s);
   }
 }
